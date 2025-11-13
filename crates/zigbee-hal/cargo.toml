@@ -1,0 +1,9 @@
+[package]
+name = "zigbee-hal"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+zigbee-core = { path = "../zigbee-core" }
+thiserror.workspace = true
+async-trait = "0.1"

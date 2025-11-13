@@ -1,0 +1,3 @@
+[[example]]
+name = "simple_capture"
+path = "examples/simple_capture.rs"

@@ -1,0 +1,20 @@
+[package]
+name = "zigbee-ui"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "zigbee-analyzer"
+path = "src/main.rs"
+
+[dependencies]
+zigbee-core = { path = "../zigbee-core" }
+zigbee-hal = { path = "../zigbee-hal" }
+zigbee-drivers = { path = "../zigbee-drivers" }
+zigbee-analysis = { path = "../zigbee-analysis" }
+eframe.workspace = true
+egui.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+plotters.workspace = true

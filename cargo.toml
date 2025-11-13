@@ -1,0 +1,44 @@
+[workspace]
+members = [
+    "crates/zigbee-core",
+    "crates/zigbee-hal",
+    "crates/zigbee-drivers",
+    "crates/zigbee-analysis",
+    "crates/zigbee-ui",
+    "crates/zigbee-cli",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["wofl <tom@whispr.dev>"]
+license = "MIT/CC0 Hybrid"
+repository = "https://github.com/whisprer/zigbee-analyzer"
+
+[workspace.dependencies]
+# Core dependencies all crates can share
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"
+anyhow = "1.0"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Protocol/parsing
+nom = "7.1"
+bitvec = "1.0"
+
+# Hardware/serial
+serialport = "4.2"
+rusb = "0.9"
+
+# Database
+rusqlite = { version = "0.30", features = ["bundled"] }
+
+# UI
+iced = { version = "0.12", features = ["tokio"] }
+
+# Graphs/plotting
+plotters = "0.3"
