@@ -64,6 +64,7 @@ impl From<u8> for DiscoverRoute {
 
 /// Zigbee Network Command types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
 pub enum NwkCommand {
     RouteRequest = 0x01,
     RouteReply = 0x02,

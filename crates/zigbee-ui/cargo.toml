@@ -1,21 +1,22 @@
 [package]
 name = "zigbee-ui"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "zigbee-analyzer"
+path = "src/main.rs"
 
 [dependencies]
-zigbee-core = { path = "../zigbee-core" }
-zigbee-hal = { path = "../zigbee-hal" }
-zigbee-drivers = { path = "../zigbee-drivers" }
-zigbee-analysis = { path = "../zigbee-analysis" }
+zigbee-core = { workspace = true }
+zigbee-hal = { workspace = true }
+zigbee-drivers = { workspace = true }
+zigbee-analysis = { workspace = true }
 
-# TUI
-ratatui = "0.27"
-crossterm = "0.27"
-
-# Async
-tokio = { version = "1.35", features = ["full"] }
-
-# Utilities
-anyhow = "1.0"
-chrono = "0.4"
+tokio = { workspace = true }
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }

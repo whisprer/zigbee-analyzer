@@ -2,10 +2,14 @@
 name = "zigbee-core"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [dependencies]
-serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
-nom.workspace = true
-bitvec.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+aes = { workspace = true }
+ccm = { workspace = true }
+cipher = { workspace = true }
+nom = "7.1"  # ADD THIS

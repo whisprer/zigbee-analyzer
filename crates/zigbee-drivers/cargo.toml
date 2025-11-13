@@ -2,11 +2,15 @@
 name = "zigbee-drivers"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [dependencies]
-zigbee-core = { path = "../zigbee-core" }
-zigbee-hal = { path = "../zigbee-hal" }
-serialport.workspace = true
-rusb.workspace = true
-thiserror.workspace = true
-pcap-file = "2.0"  # For PCAP reading
+zigbee-core = { workspace = true }
+zigbee-hal = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+serialport = { workspace = true }
+rusb = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }

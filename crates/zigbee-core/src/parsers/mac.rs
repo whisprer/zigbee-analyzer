@@ -28,15 +28,15 @@ fn parse_mac_frame_nom(input: &[u8]) -> IResult<&[u8], MacFrame> {
     let (input, sequence) = le_u8(input)?;
     
     // Parse destination PAN and address
-    let (input, dest_pan, dest_addr) = parse_address_fields(
+       let (input, (dest_pan, dest_addr)) = parse_address_fields(
         input,
         frame_control.dest_addr_mode,
         true, // destination gets PAN ID unless compressed
-    )?;
+       )?;
     
     // Parse source PAN and address
     let pan_id_compression = frame_control.pan_id_compression;
-    let (input, src_pan, src_addr) = parse_address_fields(
+    let (input, (src_pan, src_addr)) = parse_address_fields(
         input,
         frame_control.src_addr_mode,
         !pan_id_compression, // source only gets PAN if not compressed

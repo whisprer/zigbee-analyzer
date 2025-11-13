@@ -65,6 +65,7 @@ impl From<u8> for DeliveryMode {
 
 /// APS Command types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
 pub enum ApsCommand {
     SkkeOne = 0x01,
     SkkeTwo = 0x02,
@@ -103,6 +104,7 @@ impl From<u8> for ApsCommand {
 
 /// Common Zigbee Profile IDs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u16)]
 pub enum ProfileId {
     ZigbeeDeviceProfile = 0x0000,
     HomeAutomation = 0x0104,

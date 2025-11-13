@@ -111,6 +111,7 @@ pub struct SecurityHeader {
 
 /// MAC command types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
 pub enum MacCommand {
     AssociationRequest = 0x01,
     AssociationResponse = 0x02,

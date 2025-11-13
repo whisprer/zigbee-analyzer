@@ -1,7 +1,6 @@
 use crate::zcl::*;
 use crate::parsers::error::{ParseError, ParseResult};
 use nom::{
-    bytes::complete::take,
     number::complete::{le_u16, le_u8},
     IResult,
 };

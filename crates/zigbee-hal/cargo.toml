@@ -2,8 +2,12 @@
 name = "zigbee-hal"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [dependencies]
-zigbee-core = { path = "../zigbee-core" }
-thiserror.workspace = true
-async-trait = "0.1"
+zigbee-core = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }

@@ -60,6 +60,7 @@ pub enum ZclGlobalCommand {
 
 /// Common Zigbee Cluster IDs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u16)]
 pub enum ClusterId {
     // General clusters
     Basic = 0x0000,

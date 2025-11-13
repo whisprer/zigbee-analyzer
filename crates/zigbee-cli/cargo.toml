@@ -1,0 +1,20 @@
+[package]
+name = "zigbee-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "zigbee-cli"
+path = "src/main.rs"
+
+[dependencies]
+zigbee-core = { workspace = true }
+zigbee-hal = { workspace = true }
+zigbee-drivers = { workspace = true }
+zigbee-analysis = { workspace = true }
+
+tokio = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }

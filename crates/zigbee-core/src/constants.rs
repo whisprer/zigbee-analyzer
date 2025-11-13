@@ -6,7 +6,7 @@ pub const CHANNEL_COUNT: usize = 16;
 /// Channel to frequency mapping (in MHz)
 pub fn channel_to_frequency(channel: u8) -> Option<u16> {
     if (CHANNEL_MIN..=CHANNEL_MAX).contains(&channel) {
-        Some(2405 + (channel - 11) * 5)
+		Some(2405 + ((channel - 11) * 5) as u16)		
     } else {
         None
     }
