@@ -32,38 +32,45 @@ const CMD_DEVICE_STATE: u8 = 0x07;
 const CMD_VERSION: u8 = 0x0D;
 const CMD_WRITE_PARAMETER: u8 = 0x05;
 const CMD_READ_PARAMETER: u8 = 0x0A;
-const CMD_APS_DATA_INDICATION: u8 = 0x17;  // Captured packet
+const CMD_APS_DATA_INDICATION: u8 = 0x17;
+const CMD_APS_DATA_REQUEST: u8 = 0x12;
+const CMD_MAC_POLL_INDICATION: u8 = 0x1C;
 
 // Parameter IDs
 const PARAM_MAC_ADDRESS: u8 = 0x01;
-const PARAM_NETWORK_PANID: u8 = 0x05;
-const PARAM_NETWORK_ADDR: u8 = 0x07;
+const PARAM_NWK_PANID: u8 = 0x05;
+const PARAM_NWK_ADDR: u8 = 0x07;
+const PARAM_NWK_EXTENDED_PANID: u8 = 0x08;
+const PARAM_APS_DESIGNATED_COORDINATOR: u8 = 0x09;
 const PARAM_CHANNEL_MASK: u8 = 0x0A;
 const PARAM_APS_EXTENDED_PANID: u8 = 0x0B;
 const PARAM_TRUST_CENTER_ADDRESS: u8 = 0x0E;
+const PARAM_SECURITY_MODE: u8 = 0x10;
 const PARAM_NETWORK_KEY: u8 = 0x18;
+const PARAM_OPERATING_MODE: u8 = 0x25;
 
-// ConBee device states
-const STATE_NETWORK_LOST: u8 = 0x00;
-const STATE_JOINING: u8 = 0x01;
-const STATE_CONNECTED: u8 = 0x02;
-const STATE_LEAVING: u8 = 0x03;
+// Operating modes
+const MODE_COORDINATOR: u8 = 0x00;
+const MODE_ROUTER: u8 = 0x01;
+const MODE_END_DEVICE: u8 = 0x02;
+
+// Address modes
+const ADDR_MODE_GROUP: u8 = 0x01;
+const ADDR_MODE_NWK: u8 = 0x02;
+const ADDR_MODE_IEEE: u8 = 0x03;
 
 // USB VID/PID for ConBee devices
 const DRESDEN_VID: u16 = 0x1cf1;
-const CONBEE_PID: u16 = 0x0030;      // ConBee I
-const CONBEE_II_PID: u16 = 0x0031;   // ConBee II
-const RASPBEE_PID: u16 = 0x0028;     // RaspBee
-const RASPBEE_II_PID: u16 = 0x0029;  // RaspBee II
+const CONBEE_PID: u16 = 0x0030;
+const CONBEE_II_PID: u16 = 0x0031;
+const RASPBEE_PID: u16 = 0x0028;
+const RASPBEE_II_PID: u16 = 0x0029;
 
 impl ConBee {
-    /// Create a new ConBee driver instance
     pub fn new() -> HalResult<Self> {
         let (port_name, variant) = Self::find_device()?;
         
         let mut capabilities = DeviceCapabilities::basic_capture();
-        
-        // ConBee has good specs
         capabilities.max_sample_rate = 400;
         capabilities.buffer_size = 1024;
         capabilities.hardware_timestamps = true;
@@ -77,13 +84,12 @@ impl ConBee {
             channel: 11,
             active: false,
             capabilities,
-            buffer: Vec::with_capacity(1024),
+            buffer: Vec::with_capacity(2048),
             variant,
             firmware_version: None,
         })
     }
     
-    /// Find ConBee device on system
     fn find_device() -> HalResult<(String, ConBeeVariant)> {
         let ports = serialport::available_ports()
             .map_err(|e| HalError::HardwareError(format!("Failed to enumerate ports: {}", e)))?;
@@ -109,7 +115,6 @@ impl ConBee {
         Err(HalError::DeviceNotFound)
     }
     
-    /// Create driver for specific port (used by registry)
     pub fn new_with_port(port_name: String, variant: ConBeeVariant) -> HalResult<Self> {
         let mut capabilities = DeviceCapabilities::basic_capture();
         capabilities.max_sample_rate = 400;
@@ -124,15 +129,13 @@ impl ConBee {
             channel: 11,
             active: false,
             capabilities,
-            buffer: Vec::with_capacity(1024),
+            buffer: Vec::with_capacity(2048),
             variant,
             firmware_version: None,
         })
     }
     
-    /// Open serial port connection
     fn open_port(&mut self) -> HalResult<()> {
-        // ConBee uses 38400 baud for ConBee I, 115200 for ConBee II
         let baud_rate = match self.variant {
             ConBeeVariant::ConBee | ConBeeVariant::RaspBee => 38400,
             ConBeeVariant::ConBeeII | ConBeeVariant::RaspBeeII => 115200,
@@ -151,7 +154,6 @@ impl ConBee {
         Ok(())
     }
     
-    /// Encode data with SLIP framing
     fn slip_encode(&self, data: &[u8]) -> Vec<u8> {
         let mut encoded = vec![SLIP_END];
         
@@ -175,7 +177,6 @@ impl ConBee {
         encoded
     }
     
-    /// Decode SLIP framed data
     fn slip_decode(&self, data: &[u8]) -> Vec<u8> {
         let mut decoded = Vec::new();
         let mut escape_next = false;
@@ -190,15 +191,9 @@ impl ConBee {
                 escape_next = false;
             } else {
                 match byte {
-                    SLIP_END => {
-                        // Frame delimiter, ignore
-                    }
-                    SLIP_ESC => {
-                        escape_next = true;
-                    }
-                    _ => {
-                        decoded.push(byte);
-                    }
+                    SLIP_END => {},
+                    SLIP_ESC => escape_next = true,
+                    _ => decoded.push(byte),
                 }
             }
         }
@@ -206,19 +201,16 @@ impl ConBee {
         decoded
     }
     
-    /// Send a command to the ConBee
     fn send_command(&mut self, cmd: u8, payload: &[u8]) -> HalResult<()> {
         let port = self.port.as_mut()
             .ok_or(HalError::NotInitialized)?;
         
-        // Build frame: CMD | SEQ | 0x00 | LEN_L | LEN_H | PAYLOAD
-        let seq = 0u8; // Sequence number (we'll use 0 for simplicity)
+        let seq = 0u8;
         let len = payload.len() as u16;
         
         let mut frame = vec![cmd, seq, 0x00, (len & 0xFF) as u8, ((len >> 8) & 0xFF) as u8];
         frame.extend_from_slice(payload);
         
-        // SLIP encode
         let encoded = self.slip_encode(&frame);
         
         port.write_all(&encoded)
@@ -230,7 +222,6 @@ impl ConBee {
         Ok(())
     }
     
-    /// Read a SLIP frame from ConBee
     fn read_frame(&mut self, timeout: Duration) -> HalResult<Option<Frame>> {
         let port = self.port.as_mut()
             .ok_or(HalError::NotInitialized)?;
@@ -242,18 +233,15 @@ impl ConBee {
         let mut byte_buf = [0u8; 1];
         let mut in_frame = false;
         
-        // Read until we get a complete SLIP frame
         loop {
-            match port.read(&mut byte_buf) {
-                Ok(1) => {
+            match port.read_exact(&mut byte_buf) {
+                Ok(_) => {
                     let byte = byte_buf[0];
                     
                     if byte == SLIP_END {
                         if in_frame && !raw_buffer.is_empty() {
-                            // End of frame
                             break;
                         } else {
-                            // Start of frame
                             in_frame = true;
                             raw_buffer.clear();
                         }
@@ -261,8 +249,7 @@ impl ConBee {
                         raw_buffer.push(byte);
                     }
                 }
-                Ok(_) => continue,
-                Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
+                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
                     return Ok(None);
                 }
                 Err(e) => {
@@ -270,13 +257,11 @@ impl ConBee {
                 }
             }
             
-            // Safety: don't accumulate too much
             if raw_buffer.len() > 2048 {
                 return Err(HalError::InvalidPacket("Frame too large".to_string()));
             }
         }
         
-        // Decode SLIP
         let decoded = self.slip_decode(&raw_buffer);
         
         if decoded.len() < 5 {
@@ -284,8 +269,8 @@ impl ConBee {
         }
         
         let cmd = decoded[0];
-        let _seq = decoded[1];
-        let _status = decoded[2];
+        let seq = decoded[1];
+        let status = decoded[2];
         let len = decoded[3] as usize | ((decoded[4] as usize) << 8);
         
         if decoded.len() < 5 + len {
@@ -294,10 +279,9 @@ impl ConBee {
         
         let data = decoded[5..5 + len].to_vec();
         
-        Ok(Some(Frame { cmd, data }))
+        Ok(Some(Frame { cmd, seq, status, data }))
     }
     
-    /// Query firmware version
     async fn query_version(&mut self) -> HalResult<()> {
         self.send_command(CMD_VERSION, &[])?;
         
@@ -322,10 +306,7 @@ impl ConBee {
         }
     }
     
-    /// Set channel by writing channel mask parameter
     async fn set_channel_mask(&mut self, channel: u8) -> HalResult<()> {
-        // Channel mask is a 32-bit value where each bit represents a channel
-        // Bit 11 = channel 11, bit 12 = channel 12, etc.
         let channel_mask: u32 = 1 << channel;
         
         let mut payload = vec![PARAM_CHANNEL_MASK];
@@ -338,68 +319,223 @@ impl ConBee {
         Ok(())
     }
     
-    /// Parse a captured packet from ConBee data
-    fn parse_packet(&self, data: &[u8]) -> HalResult<RawPacket> {
-        // ConBee APS data indication format is complex
-        // For simplicity, we'll extract the relevant fields
-        
-        if data.len() < 20 {
-            return Err(HalError::InvalidPacket(format!(
-                "Packet too short: {} bytes",
-                data.len()
-            )));
+    /// Parse APS Data Indication into raw 802.15.4 packet
+    fn parse_aps_indication(&self, data: &[u8]) -> HalResult<RawPacket> {
+        if data.len() < 2 {
+            return Err(HalError::InvalidPacket("APS indication too short".to_string()));
         }
         
-        // ConBee includes full APS/NWK/MAC data
-        // The actual 802.15.4 frame starts at an offset
-        // This is a simplified parser - real implementation would be more complex
+        let mut offset = 0;
         
-        // Typical offsets (these vary by firmware version):
-        // Bytes 0-1: Dest addr
-        // Bytes 2-3: Profile ID
-        // Bytes 4-5: Cluster ID
-        // Byte 6: Dest endpoint
-        // Byte 7: Src endpoint
-        // ...
-        // The MAC frame data is further in
+        // Device state (1 byte)
+        let _device_state = data[offset];
+        offset += 1;
         
-        // For now, we'll extract what we can
-        let rssi = if data.len() > 10 { data[10] as i8 } else { -50 };
-        let lqi = if data.len() > 11 { data[11] } else { 200 };
+        // Destination address mode (1 byte)
+        let dst_addr_mode = data[offset];
+        offset += 1;
         
-        // Try to find the actual MAC frame in the payload
-        // ConBee wraps packets heavily, so we need to unwrap
-        let mac_frame_start = 12; // Approximate offset
+        // Destination address (variable length based on mode)
+        let dst_addr_len = match dst_addr_mode {
+            ADDR_MODE_GROUP => 2,
+            ADDR_MODE_NWK => 2,
+            ADDR_MODE_IEEE => 8,
+            _ => 0,
+        };
         
-        if data.len() <= mac_frame_start {
-            return Err(HalError::InvalidPacket("No MAC frame data".to_string()));
+        if data.len() < offset + dst_addr_len {
+            return Err(HalError::InvalidPacket("Insufficient data for dst addr".to_string()));
         }
         
-        let mac_data = data[mac_frame_start..].to_vec();
+        let _dst_addr = &data[offset..offset + dst_addr_len];
+        offset += dst_addr_len;
+        
+        // Destination endpoint (1 byte) - only if not group mode
+        if dst_addr_mode != ADDR_MODE_GROUP {
+            if data.len() < offset + 1 {
+                return Err(HalError::InvalidPacket("No dst endpoint".to_string()));
+            }
+            let _dst_endpoint = data[offset];
+            offset += 1;
+        }
+        
+        // Source address mode (1 byte)
+        if data.len() < offset + 1 {
+            return Err(HalError::InvalidPacket("No src addr mode".to_string()));
+        }
+        let src_addr_mode = data[offset];
+        offset += 1;
+        
+        // Source address (variable length)
+        let src_addr_len = match src_addr_mode {
+            ADDR_MODE_GROUP => 2,
+            ADDR_MODE_NWK => 2,
+            ADDR_MODE_IEEE => 8,
+            _ => 0,
+        };
+        
+        if data.len() < offset + src_addr_len {
+            return Err(HalError::InvalidPacket("Insufficient data for src addr".to_string()));
+        }
+        
+        let _src_addr = &data[offset..offset + src_addr_len];
+        offset += src_addr_len;
+        
+        // Source endpoint (1 byte)
+        if data.len() < offset + 1 {
+            return Err(HalError::InvalidPacket("No src endpoint".to_string()));
+        }
+        let _src_endpoint = data[offset];
+        offset += 1;
+        
+        // Profile ID (2 bytes)
+        if data.len() < offset + 2 {
+            return Err(HalError::InvalidPacket("No profile ID".to_string()));
+        }
+        let _profile_id = u16::from_le_bytes([data[offset], data[offset + 1]]);
+        offset += 2;
+        
+        // Cluster ID (2 bytes)
+        if data.len() < offset + 2 {
+            return Err(HalError::InvalidPacket("No cluster ID".to_string()));
+        }
+        let _cluster_id = u16::from_le_bytes([data[offset], data[offset + 1]]);
+        offset += 2;
+        
+        // ASDU length (2 bytes)
+        if data.len() < offset + 2 {
+            return Err(HalError::InvalidPacket("No ASDU length".to_string()));
+        }
+        let asdu_len = u16::from_le_bytes([data[offset], data[offset + 1]]) as usize;
+        offset += 2;
+        
+        // ASDU payload (variable)
+        if data.len() < offset + asdu_len {
+            return Err(HalError::InvalidPacket("Insufficient ASDU data".to_string()));
+        }
+        let asdu = &data[offset..offset + asdu_len];
+        offset += asdu_len;
+        
+        // LQI (1 byte)
+        if data.len() < offset + 1 {
+            return Err(HalError::InvalidPacket("No LQI".to_string()));
+        }
+        let lqi = data[offset];
+        offset += 1;
+        
+        // RSSI (1 byte) - signed
+        if data.len() < offset + 1 {
+            return Err(HalError::InvalidPacket("No RSSI".to_string()));
+        }
+        let rssi = data[offset] as i8;
+        
+        // Now we need to reconstruct the 802.15.4 MAC frame
+        // The ASDU contains the NWK/APS payload, but we need the full MAC frame
+        // We'll build it from the information we have
+        
+        let mut mac_frame = Vec::new();
+        
+        // Frame Control Field (2 bytes)
+        // Frame Type: Data (0b001)
+        // Security: depends on if encryption was used
+        // Frame Pending: 0
+        // Ack Request: typically 1
+        // PAN ID Compression: depends on addressing
+        // Dest Addr Mode: based on dst_addr_mode
+        // Frame Version: 0b00 (2003)
+        // Src Addr Mode: based on src_addr_mode
+        
+        let frame_type = 0b001; // Data frame
+        let security = 0; // We don't know from APS indication
+        let frame_pending = 0;
+        let ack_request = 1;
+        let pan_id_compression = if dst_addr_mode == src_addr_mode { 1 } else { 0 };
+        
+        let dst_addr_mode_fcf = match dst_addr_mode {
+            ADDR_MODE_NWK => 0b10,
+            ADDR_MODE_IEEE => 0b11,
+            _ => 0b00,
+        };
+        
+        let src_addr_mode_fcf = match src_addr_mode {
+            ADDR_MODE_NWK => 0b10,
+            ADDR_MODE_IEEE => 0b11,
+            _ => 0b00,
+        };
+        
+        let fcf_low = (frame_type & 0b111) | 
+                      ((security & 1) << 3) |
+                      ((frame_pending & 1) << 4) |
+                      ((ack_request & 1) << 5) |
+                      ((pan_id_compression & 1) << 6);
+        
+        let fcf_high = (dst_addr_mode_fcf << 2) | 
+                       (src_addr_mode_fcf << 6);
+        
+        mac_frame.push(fcf_low);
+        mac_frame.push(fcf_high);
+        
+        // Sequence number (1 byte) - we don't have it, use 0
+        mac_frame.push(0);
+        
+        // Destination PAN ID (2 bytes) - use default for now
+        mac_frame.extend_from_slice(&[0xFF, 0xFF]);
+        
+        // Destination address
+        mac_frame.extend_from_slice(_dst_addr);
+        
+        // Source PAN ID (if not compressed)
+        if pan_id_compression == 0 {
+            mac_frame.extend_from_slice(&[0xFF, 0xFF]);
+        }
+        
+        // Source address
+        mac_frame.extend_from_slice(_src_addr);
+        
+        // Payload (the ASDU is the NWK payload)
+        mac_frame.extend_from_slice(asdu);
+        
+        // FCS (2 bytes) - we'll calculate it
+        let fcs = self.calculate_fcs(&mac_frame);
+        mac_frame.extend_from_slice(&fcs.to_le_bytes());
         
         Ok(RawPacket {
             timestamp: SystemTime::now(),
             channel: self.channel,
             rssi,
             lqi,
-            data: mac_data,
+            data: mac_frame,
         })
+    }
+    
+    /// Calculate FCS (Frame Check Sequence) using CRC-16-CCITT
+    fn calculate_fcs(&self, data: &[u8]) -> u16 {
+        let mut crc: u16 = 0;
+        
+        for &byte in data {
+            crc ^= (byte as u16) << 8;
+            for _ in 0..8 {
+                if crc & 0x8000 != 0 {
+                    crc = (crc << 1) ^ 0x1021;
+                } else {
+                    crc <<= 1;
+                }
+            }
+        }
+        
+        crc
     }
 }
 
 #[async_trait]
 impl ZigbeeCapture for ConBee {
     async fn initialize(&mut self) -> HalResult<()> {
-        // Open serial port
         self.open_port()?;
         
-        // Small delay for device to settle
         tokio::time::sleep(Duration::from_millis(200)).await;
         
-        // Query firmware version
         self.query_version().await?;
         
-        // Set initial channel
         self.set_channel_mask(self.channel).await?;
         
         self.active = true;
@@ -426,14 +562,12 @@ impl ZigbeeCapture for ConBee {
             return Err(HalError::NotInitialized);
         }
         
-        // Keep reading frames until we get a packet
         loop {
             match self.read_frame(Duration::from_secs(5))? {
                 Some(frame) => {
                     if frame.cmd == CMD_APS_DATA_INDICATION {
-                        return self.parse_packet(&frame.data);
+                        return self.parse_aps_indication(&frame.data);
                     }
-                    // Ignore other frame types, continue reading
                 }
                 None => {
                     return Err(HalError::Timeout);
@@ -447,11 +581,10 @@ impl ZigbeeCapture for ConBee {
             return Err(HalError::NotInitialized);
         }
         
-        // Non-blocking read with short timeout
         match self.read_frame(Duration::from_millis(1))? {
             Some(frame) => {
                 if frame.cmd == CMD_APS_DATA_INDICATION {
-                    Ok(Some(self.parse_packet(&frame.data)?))
+                    Ok(Some(self.parse_aps_indication(&frame.data)?))
                 } else {
                     Ok(None)
                 }
@@ -488,9 +621,10 @@ impl ZigbeeCapture for ConBee {
     }
 }
 
-/// Internal frame structure
 struct Frame {
     cmd: u8,
+    seq: u8,
+    status: u8,
     data: Vec<u8>,
 }
 
@@ -504,7 +638,6 @@ pub enum ConBeeVariant {
 
 impl Drop for ConBee {
     fn drop(&mut self) {
-        // Clean shutdown
         self.active = false;
     }
 }
