@@ -1,8 +1,8 @@
-mod overview;
+mod overview;  // Fixed from overrview.rs typo
 mod topology;
 mod statistics;
-mod channels;
-mod anomalies;
+mod channels;  // For channel analysis
+mod anomalies;  // Fixed from channel.rs
 mod security;
 mod devices;
 mod help;

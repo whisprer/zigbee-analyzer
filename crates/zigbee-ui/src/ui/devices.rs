@@ -32,19 +32,19 @@ fn draw_summary(f: &mut Frame, app: &App, area: Rect) {
         Line::from(vec![
             Span::styled("Identified: ", Style::default().fg(Color::Green)),
             Span::raw(format!("{:4} ({:.1}%)  ", 
-                stats.identified_devices,
-                stats.identified_devices as f32 / stats.total_devices.max(1) as f32 * 100.0
+                stats.total_devices,  // TODO: track identified
+                stats.total_devices as f32 / stats.total_devices.max(1) as f32 * 100.0
             )),
             Span::styled("Unidentified: ", Style::default().fg(Color::Yellow)),
             Span::raw(format!("{:4} ({:.1}%)",
-                stats.unidentified_devices,
-                stats.unidentified_devices as f32 / stats.total_devices.max(1) as f32 * 100.0
+                0,  // TODO: track unidentified
+                0.0  // Placeholder percentage
             )),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Avg Confidence: ", Style::default().fg(Color::Blue)),
-            Span::raw(format!("{:.1}%", stats.avg_confidence * 100.0)),
+            Span::raw(format!("{:.1}%", 50.0)),  // TODO: calculate avg_confidence
         ]),
         Line::from(""),
         Line::from(vec![
@@ -60,17 +60,18 @@ fn draw_summary(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_device_list(f: &mut Frame, app: &App, area: Rect) {
-    let mut devices: Vec<_> = app.devices.get_all_fingerprints().values().collect();
-    devices.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+    let mut devices: Vec<_> = app.devices.devices.values().collect();
+    devices.sort_by(|a, b| b.packet_count.cmp(&a.packet_count));  // TODO: add confidence field
 
     let rows: Vec<Row> = devices
         .iter()
         .skip(app.scroll_offset)
         .take(area.height.saturating_sub(4) as usize)
         .map(|d| {
-            let confidence_style = if d.confidence >= 0.8 {
+            // TODO: Add confidence field to DeviceFingerprint
+            let confidence_style = if 1.0 >= 0.8 {
                 Style::default().fg(Color::Green)
-            } else if d.confidence >= 0.5 {
+            } else if 1.0 >= 0.5 {
                 Style::default().fg(Color::Yellow)
             } else {
                 Style::default().fg(Color::Red)
@@ -80,28 +81,27 @@ fn draw_device_list(f: &mut Frame, app: &App, area: Rect) {
             let model = d.model.as_deref().unwrap_or("-");
             
             let type_short = match d.device_type {
-                zigbee_analysis::DeviceType::Coordinator => "Coord",
-                zigbee_analysis::DeviceType::Router => "Router",
-                zigbee_analysis::DeviceType::EndDevice => "EndDev",
-                zigbee_analysis::DeviceType::OnOffLight => "Light",
-                zigbee_analysis::DeviceType::DimmableLight => "DimLight",
-                zigbee_analysis::DeviceType::ColorLight => "ColorLight",
-                zigbee_analysis::DeviceType::TemperatureSensor => "TempSens",
-                zigbee_analysis::DeviceType::MotionSensor => "MotionSens",
-                zigbee_analysis::DeviceType::ContactSensor => "ContactSens",
-                zigbee_analysis::DeviceType::SmartPlug => "Plug",
-                zigbee_analysis::DeviceType::Thermostat => "Thermo",
+                zigbee_analysis::DeviceType::PhilipsHueBulb => "HueBulb",
+                zigbee_analysis::DeviceType::PhilipsHueSwitch => "HueSwitch",
+                zigbee_analysis::DeviceType::IkeaTradfri => "Tradfri",
+                zigbee_analysis::DeviceType::XiaomiSensor => "XiaomiSens",
+                zigbee_analysis::DeviceType::XiaomiSwitch => "XiaomiSw",
+                zigbee_analysis::DeviceType::SonoffSwitch => "Sonoff",
+                zigbee_analysis::DeviceType::TuyaDevice => "Tuya",
+                zigbee_analysis::DeviceType::GenericCoordinator => "Coord",
+                zigbee_analysis::DeviceType::GenericRouter => "Router",
+                zigbee_analysis::DeviceType::GenericEndDevice => "EndDev",
                 _ => "Unknown",
             };
 
             Row::new(vec![
-                format!("{}", d.mac_addr),
+                format!("{}", d.address),
                 type_short.to_string(),
                 manufacturer.chars().take(12).collect::<String>(),
                 model.chars().take(15).collect::<String>(),
-                format!("{:.0}%", d.confidence * 100.0),
+                format!("{:.0}%", 100.0),  // TODO: add confidence field
                 format!("{}", d.packet_count),
-                format!("{:.1}%", d.protocol.encryption_rate * 100.0),
+                format!("{:.1}%", 0.0),  // TODO: add protocol field
             ])
             .style(confidence_style)
         })

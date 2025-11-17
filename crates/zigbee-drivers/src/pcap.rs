@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// PCAP file reader for analyzing recorded Zigbee captures
 pub struct PcapReader {
     file_path: PathBuf,
     packets: Vec<StoredPacket>,
@@ -30,7 +29,6 @@ struct StoredPacket {
     data: Vec<u8>,
 }
 
-// PCAP file format constants
 const PCAP_MAGIC_NUMBER: u32 = 0xa1b2c3d4;
 const PCAP_MAGIC_NUMBER_NS: u32 = 0xa1b23c4d;
 const PCAP_MAGIC_SWAPPED: u32 = 0xd4c3b2a1;
@@ -39,13 +37,6 @@ const PCAP_MAGIC_NS_SWAPPED: u32 = 0x4d3cb2a1;
 const LINKTYPE_IEEE802_15_4: u16 = 195;
 const LINKTYPE_IEEE802_15_4_WITHFCS: u16 = 230;
 const LINKTYPE_IEEE802_15_4_NOFCS: u16 = 231;
-const LINKTYPE_IEEE802_15_4_TAP: u16 = 283;
-
-// FCS Radio Tap TLV types
-const FCS_RADIOTAP_TLV_CHANNEL: u16 = 0;
-const FCS_RADIOTAP_TLV_RSSI: u16 = 1;
-const FCS_RADIOTAP_TLV_LQI: u16 = 10;
-const FCS_RADIOTAP_TLV_FCS: u16 = 30;
 
 impl PcapReader {
     pub fn new<P: AsRef<Path>>(file_path: P) -> HalResult<Self> {
@@ -103,14 +94,12 @@ impl PcapReader {
         let mut file = File::open(&self.file_path)
             .map_err(|e| HalError::IoError(e))?;
         
-        // Read global header (24 bytes)
         let mut header = [0u8; 24];
         file.read_exact(&mut header)
             .map_err(|e| HalError::IoError(e))?;
         
         let magic = u32::from_le_bytes([header[0], header[1], header[2], header[3]]);
         
-        // Check endianness and precision
         let (nanosecond_precision, swapped) = match magic {
             PCAP_MAGIC_NUMBER => (false, false),
             PCAP_MAGIC_NUMBER_NS => (true, false),
@@ -124,15 +113,6 @@ impl PcapReader {
             }
         };
         
-        // Parse header with correct endianness
-        let read_u16 = |bytes: [u8; 2]| -> u16 {
-            if swapped {
-                u16::from_be_bytes(bytes)
-            } else {
-                u16::from_le_bytes(bytes)
-            }
-        };
-        
         let read_u32 = |bytes: [u8; 4]| -> u32 {
             if swapped {
                 u32::from_be_bytes(bytes)
@@ -141,6 +121,298 @@ impl PcapReader {
             }
         };
         
-        let _version_major = read_u16([header[4], header[5]]);
-        let _version_minor = read_u16([header[6], header[7]]);
-        let _this
+        let linktype = read_u32([header[20], header[21], header[22], header[23]]);
+        
+        let linktype_u16 = linktype as u16;
+        if linktype_u16 != LINKTYPE_IEEE802_15_4 
+            && linktype_u16 != LINKTYPE_IEEE802_15_4_WITHFCS
+            && linktype_u16 != LINKTYPE_IEEE802_15_4_NOFCS {
+            return Err(HalError::InvalidPacket(format!(
+                "Unsupported link type: {} (expected IEEE 802.15.4)",
+                linktype
+            )));
+        }
+        
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)
+            .map_err(|e| HalError::IoError(e))?;
+        
+        let mut offset = 0;
+        while offset + 16 <= buffer.len() {
+            let ts_sec = read_u32([
+                buffer[offset],
+                buffer[offset + 1],
+                buffer[offset + 2],
+                buffer[offset + 3],
+            ]);
+            let ts_usec_or_nsec = read_u32([
+                buffer[offset + 4],
+                buffer[offset + 5],
+                buffer[offset + 6],
+                buffer[offset + 7],
+            ]);
+            let incl_len = read_u32([
+                buffer[offset + 8],
+                buffer[offset + 9],
+                buffer[offset + 10],
+                buffer[offset + 11],
+            ]) as usize;
+            
+            offset += 16;
+            
+            if offset + incl_len > buffer.len() {
+                break;
+            }
+            
+            let packet_data = buffer[offset..offset + incl_len].to_vec();
+            offset += incl_len;
+            
+            let timestamp = if nanosecond_precision {
+                UNIX_EPOCH + Duration::from_secs(ts_sec as u64) 
+                    + Duration::from_nanos(ts_usec_or_nsec as u64)
+            } else {
+                UNIX_EPOCH + Duration::from_secs(ts_sec as u64) 
+                    + Duration::from_micros(ts_usec_or_nsec as u64)
+            };
+            
+            let (channel, rssi, lqi, data) = self.parse_packet_metadata(&packet_data);
+            
+            self.packets.push(StoredPacket {
+                timestamp,
+                channel,
+                rssi,
+                lqi,
+                data,
+            });
+        }
+        
+        Ok(())
+    }
+    
+    fn parse_packet_metadata(&self, data: &[u8]) -> (u8, i8, u8, Vec<u8>) {
+        if data.len() > 2 && data[0] == 0x00 && data[1] <= 26 {
+            let channel = data[1];
+            if (11..=26).contains(&channel) && data.len() > 4 {
+                let rssi = data[2] as i8;
+                let lqi = data[3];
+                return (channel, rssi, lqi, data[4..].to_vec());
+            }
+        }
+        
+        (self.channel, -50, 200, data.to_vec())
+    }
+}
+
+#[async_trait]
+impl ZigbeeCapture for PcapReader {
+    async fn initialize(&mut self) -> HalResult<()> {
+        self.load_pcap()?;
+        
+        if self.packets.is_empty() {
+            return Err(HalError::HardwareError(
+                "PCAP file contains no packets".to_string()
+            ));
+        }
+        
+        self.active = true;
+        self.current_index = 0;
+        
+        Ok(())
+    }
+    
+    async fn set_channel(&mut self, channel: u8) -> HalResult<()> {
+        if !(11..=26).contains(&channel) {
+            return Err(HalError::InvalidChannel(channel));
+        }
+        
+        self.channel = channel;
+        Ok(())
+    }
+    
+    fn get_channel(&self) -> HalResult<u8> {
+        Ok(self.channel)
+    }
+    
+    async fn capture_packet(&mut self) -> HalResult<RawPacket> {
+        if !self.active {
+            return Err(HalError::NotInitialized);
+        }
+        
+        if self.current_index >= self.packets.len() {
+            if self.loop_playback {
+                self.current_index = 0;
+            } else {
+                return Err(HalError::HardwareError("End of file".to_string()));
+            }
+        }
+        
+        let stored = &self.packets[self.current_index];
+        
+        if self.playback_speed > 0.0 && self.current_index > 0 {
+            let prev = &self.packets[self.current_index - 1];
+            
+            if let Ok(duration) = stored.timestamp.duration_since(prev.timestamp) {
+                let delay = duration.mul_f32(self.playback_speed);
+                tokio::time::sleep(delay).await;
+            }
+        }
+        
+        let packet = RawPacket {
+            timestamp: stored.timestamp,
+            channel: stored.channel,
+            rssi: stored.rssi,
+            lqi: stored.lqi,
+            data: stored.data.clone(),
+        };
+        
+        self.current_index += 1;
+        
+        Ok(packet)
+    }
+    
+    fn try_capture_packet(&mut self) -> HalResult<Option<RawPacket>> {
+        if !self.active {
+            return Err(HalError::NotInitialized);
+        }
+        
+        if self.current_index >= self.packets.len() {
+            if self.loop_playback {
+                self.current_index = 0;
+            } else {
+                return Ok(None);
+            }
+        }
+        
+        let stored = &self.packets[self.current_index];
+        
+        let packet = RawPacket {
+            timestamp: stored.timestamp,
+            channel: stored.channel,
+            rssi: stored.rssi,
+            lqi: stored.lqi,
+            data: stored.data.clone(),
+        };
+        
+        self.current_index += 1;
+        
+        Ok(Some(packet))
+    }
+    
+    fn capabilities(&self) -> &DeviceCapabilities {
+        &self.capabilities
+    }
+    
+    fn device_name(&self) -> &str {
+        "PCAP File Reader"
+    }
+    
+    fn device_id(&self) -> String {
+        format!("pcap:{}", self.file_path.display())
+    }
+    
+    async fn shutdown(&mut self) -> HalResult<()> {
+        self.active = false;
+        Ok(())
+    }
+    
+    fn is_active(&self) -> bool {
+        self.active
+    }
+}
+
+pub struct PcapWriter {
+    file: Option<File>,
+    file_path: PathBuf,
+    nanosecond_precision: bool,
+}
+
+impl PcapWriter {
+    pub fn new<P: AsRef<Path>>(file_path: P, nanosecond_precision: bool) -> HalResult<Self> {
+        Ok(Self {
+            file: None,
+            file_path: file_path.as_ref().to_path_buf(),
+            nanosecond_precision,
+        })
+    }
+    
+    pub fn open(&mut self) -> HalResult<()> {
+        use std::io::Write;
+        
+        let mut file = File::create(&self.file_path)
+            .map_err(|e| HalError::IoError(e))?;
+        
+        let magic = if self.nanosecond_precision {
+            PCAP_MAGIC_NUMBER_NS
+        } else {
+            PCAP_MAGIC_NUMBER
+        };
+        
+        let header = [
+            &magic.to_le_bytes()[..],
+            &2u16.to_le_bytes()[..],
+            &4u16.to_le_bytes()[..],
+            &0i32.to_le_bytes()[..],
+            &0u32.to_le_bytes()[..],
+            &65535u32.to_le_bytes()[..],
+            &(LINKTYPE_IEEE802_15_4_WITHFCS as u32).to_le_bytes()[..],
+        ].concat();
+        
+        file.write_all(&header)
+            .map_err(|e| HalError::IoError(e))?;
+        
+        self.file = Some(file);
+        Ok(())
+    }
+    
+    pub fn write_packet(&mut self, packet: &RawPacket) -> HalResult<()> {
+        use std::io::Write;
+        
+        let file = self.file.as_mut()
+            .ok_or(HalError::NotInitialized)?;
+        
+        let duration = packet.timestamp.duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::from_secs(0));
+        
+        let ts_sec = duration.as_secs() as u32;
+        let ts_frac = if self.nanosecond_precision {
+            duration.subsec_nanos()
+        } else {
+            duration.subsec_micros()
+        };
+        
+        let packet_len = packet.data.len() as u32;
+        
+        let pkt_header = [
+            &ts_sec.to_le_bytes()[..],
+            &ts_frac.to_le_bytes()[..],
+            &packet_len.to_le_bytes()[..],
+            &packet_len.to_le_bytes()[..],
+        ].concat();
+        
+        file.write_all(&pkt_header)
+            .map_err(|e| HalError::IoError(e))?;
+        
+        file.write_all(&packet.data)
+            .map_err(|e| HalError::IoError(e))?;
+        
+        file.flush()
+            .map_err(|e| HalError::IoError(e))?;
+        
+        Ok(())
+    }
+    
+    pub fn close(&mut self) -> HalResult<()> {
+        if let Some(mut file) = self.file.take() {
+            use std::io::Write;
+            file.flush()
+                .map_err(|e| HalError::IoError(e))?;
+        }
+        Ok(())
+    }
+}
+
+impl Drop for PcapWriter {
+    fn drop(&mut self) {
+        let _ = self.close();
+    }
+}

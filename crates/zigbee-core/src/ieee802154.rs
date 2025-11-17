@@ -29,6 +29,7 @@ pub struct FrameControl {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Hash)]
 pub enum FrameType {
     Beacon = 0,
     Data = 1,
@@ -84,6 +85,15 @@ impl MacAddress {
     
     pub fn is_none(&self) -> bool {
         matches!(self, MacAddress::None)
+    }
+    
+    /// Convert MacAddress to MacAddress (for compatibility)
+    /// Returns self as Some(MacAddress) or None
+    pub fn as_mac(&self) -> Option<MacAddress> {
+        match self {
+            MacAddress::None => None,
+            _ => Some(*self),
+        }
     }
 }
 

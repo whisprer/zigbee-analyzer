@@ -6,7 +6,7 @@ pub mod channel;
 pub mod anomaly;
 pub mod export;
 
-// Export from topology - use TopologyMap instead of NetworkTopology
+// Export from topology
 pub use topology::{TopologyMap, Device, DeviceType as TopologyDeviceType, Link, Network, TopologyStatistics};
 
 // Export from statistics
@@ -18,7 +18,7 @@ pub use channel::{ChannelAnalyzer, ChannelMetrics, InterferenceType, ChannelReco
 // Export from anomaly
 pub use anomaly::{AnomalyDetector, Anomaly, AnomalyType, Severity as AnomalySeverity, DetectorConfig, AnomalyStatistics};
 
-// Export from security - only export types that exist
+// Export from security
 pub use security::{SecurityAnalyzer, SecurityThreat, ThreatType, ThreatSeverity, SecurityIncident, SecurityStatistics, SecurityConfig, DeviceSecurity};
 
 // Export from device_db
@@ -26,3 +26,8 @@ pub use device_db::{DeviceDatabase, DeviceFingerprint, DeviceType, DeviceStatist
 
 // Export from export
 pub use export::{ExportManager, ExportConfig, ExportFormat, AnalysisSnapshot};
+
+// Re-export topology::DeviceType for UI compatibility
+pub mod topology_types {
+    pub use crate::topology::DeviceType;
+}

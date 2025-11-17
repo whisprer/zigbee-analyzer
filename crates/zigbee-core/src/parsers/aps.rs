@@ -113,5 +113,6 @@ fn parse_aps_frame_control(fc: u8) -> ApsFrameControl {
         security,
         ack_request,
         extended_header_present,
+        direction: (fc & 0x04) != 0,
     }
 }

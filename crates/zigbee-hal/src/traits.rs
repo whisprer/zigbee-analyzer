@@ -90,4 +90,4 @@ pub struct RssiData {
     
     /// Frequency offset in kHz if available
     pub freq_offset: Option<i16>,
-}}
+}

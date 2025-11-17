@@ -21,6 +21,7 @@ pub struct ApsFrameControl {
     pub security: bool,
     pub ack_request: bool,
     pub extended_header_present: bool,
+    pub direction: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

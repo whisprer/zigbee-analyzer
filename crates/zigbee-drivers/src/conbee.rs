@@ -6,12 +6,13 @@ use zigbee_hal::{
 };
 use async_trait::async_trait;
 use serialport::{SerialPort, SerialPortType};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 use std::io::{Read, Write};
 
 /// ConBee/ConBee II/RaspBee/RaspBee II USB Zigbee Sniffer driver
 pub struct ConBee {
-    port: Option<Box<dyn SerialPort>>,
+    port: Option<Arc<Mutex<Box<dyn SerialPort>>>>,
     port_name: String,
     channel: u8,
     active: bool,
@@ -150,7 +151,7 @@ impl ConBee {
             .open()
             .map_err(|e| HalError::SerialError(format!("Failed to open port: {}", e)))?;
         
-        self.port = Some(port);
+        self.port = Some(Arc::new(Mutex::new(port)));
         Ok(())
     }
     
@@ -202,31 +203,38 @@ impl ConBee {
     }
     
     fn send_command(&mut self, cmd: u8, payload: &[u8]) -> HalResult<()> {
-        let port = self.port.as_mut()
-            .ok_or(HalError::NotInitialized)?;
-        
         let seq = 0u8;
         let len = payload.len() as u16;
         
         let mut frame = vec![cmd, seq, 0x00, (len & 0xFF) as u8, ((len >> 8) & 0xFF) as u8];
         frame.extend_from_slice(payload);
         
+        // FIX: Encode BEFORE getting mutable borrow of port
         let encoded = self.slip_encode(&frame);
         
-        port.write_all(&encoded)
+        let port = self.port.as_ref()
+            .ok_or(HalError::NotInitialized)?;
+        
+        let mut port_guard = port.lock()
+            .map_err(|e| HalError::SerialError(format!("Lock failed: {}", e)))?;
+        
+        port_guard.write_all(&encoded)
             .map_err(|e| HalError::SerialError(format!("Write failed: {}", e)))?;
         
-        port.flush()
+        port_guard.flush()
             .map_err(|e| HalError::SerialError(format!("Flush failed: {}", e)))?;
         
         Ok(())
     }
     
     fn read_frame(&mut self, timeout: Duration) -> HalResult<Option<Frame>> {
-        let port = self.port.as_mut()
+        let port = self.port.as_ref()
             .ok_or(HalError::NotInitialized)?;
         
-        port.set_timeout(timeout)
+        let mut port_guard = port.lock()
+            .map_err(|e| HalError::SerialError(format!("Lock failed: {}", e)))?;
+        
+        port_guard.set_timeout(timeout)
             .map_err(|e| HalError::SerialError(format!("Set timeout failed: {}", e)))?;
         
         let mut raw_buffer = Vec::new();
@@ -234,7 +242,7 @@ impl ConBee {
         let mut in_frame = false;
         
         loop {
-            match port.read_exact(&mut byte_buf) {
+            match port_guard.read_exact(&mut byte_buf) {
                 Ok(_) => {
                     let byte = byte_buf[0];
                     
@@ -249,7 +257,7 @@ impl ConBee {
                         raw_buffer.push(byte);
                     }
                 }
-                Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {
+                Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {
                     return Ok(None);
                 }
                 Err(e) => {

@@ -49,6 +49,7 @@ pub struct Anomaly {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Hash)]
 pub enum AnomalyType {
     // Traffic anomalies
     TrafficSpike,

@@ -6,12 +6,13 @@ use zigbee_hal::{
 };
 use async_trait::async_trait;
 use serialport::{SerialPort, SerialPortType};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 use std::io::{Read, Write};
 
 /// TI CC2531 USB Zigbee Sniffer driver
 pub struct CC2531 {
-    port: Option<Box<dyn SerialPort>>,
+    port: Option<Arc<Mutex<Box<dyn SerialPort>>>>,
     port_name: String,
     channel: u8,
     active: bool,
@@ -69,13 +70,13 @@ impl CC2531 {
             .open()
             .map_err(|e| HalError::SerialError(format!("Failed to open port: {}", e)))?;
         
-        self.port = Some(port);
+        self.port = Some(Arc::new(Mutex::new(port)));
         Ok(())
     }
     
     /// Send a command to the CC2531
     fn send_command(&mut self, cmd: u8, data: &[u8]) -> HalResult<()> {
-        let port = self.port.as_mut()
+        let port = self.port.as_ref()
             .ok_or(HalError::NotInitialized)?;
         
         let len = data.len() as u8;
@@ -88,10 +89,13 @@ impl CC2531 {
         let fcs = frame[1..].iter().fold(0u8, |acc, &b| acc ^ b);
         frame.push(fcs);
         
-        port.write_all(&frame)
+        let mut port_guard = port.lock()
+            .map_err(|e| HalError::SerialError(format!("Lock failed: {}", e)))?;
+        
+        port_guard.write_all(&frame)
             .map_err(|e| HalError::SerialError(format!("Write failed: {}", e)))?;
         
-        port.flush()
+        port_guard.flush()
             .map_err(|e| HalError::SerialError(format!("Flush failed: {}", e)))?;
         
         Ok(())
@@ -99,17 +103,20 @@ impl CC2531 {
     
     /// Read and parse a frame from CC2531
     fn read_frame(&mut self, timeout: Duration) -> HalResult<Option<Frame>> {
-        let port = self.port.as_mut()
+        let port = self.port.as_ref()
             .ok_or(HalError::NotInitialized)?;
         
+        let mut port_guard = port.lock()
+            .map_err(|e| HalError::SerialError(format!("Lock failed: {}", e)))?;
+        
         // Set timeout for this read
-        port.set_timeout(timeout)
+        port_guard.set_timeout(timeout)
             .map_err(|e| HalError::SerialError(format!("Set timeout failed: {}", e)))?;
         
         // Look for SOF byte
         let mut sof_buf = [0u8; 1];
         loop {
-            match port.read(&mut sof_buf) {
+            match port_guard.read(&mut sof_buf) {
                 Ok(1) => {
                     if sof_buf[0] == SOF {
                         break;
@@ -127,7 +134,7 @@ impl CC2531 {
         
         // Read length and command
         let mut header = [0u8; 2];
-        port.read_exact(&mut header)
+        port_guard.read_exact(&mut header)
             .map_err(|e| HalError::SerialError(format!("Read header failed: {}", e)))?;
         
         let len = header[0] as usize;
@@ -136,13 +143,13 @@ impl CC2531 {
         // Read data
         let mut data = vec![0u8; len];
         if len > 0 {
-            port.read_exact(&mut data)
+            port_guard.read_exact(&mut data)
                 .map_err(|e| HalError::SerialError(format!("Read data failed: {}", e)))?;
         }
         
         // Read FCS
         let mut fcs_buf = [0u8; 1];
-        port.read_exact(&mut fcs_buf)
+        port_guard.read_exact(&mut fcs_buf)
             .map_err(|e| HalError::SerialError(format!("Read FCS failed: {}", e)))?;
         
         // Verify FCS
@@ -306,7 +313,7 @@ impl ZigbeeCapture for CC2531 {
     }
     
     async fn shutdown(&mut self) -> HalResult<()> {
-        if let Some(_port) = self.port.as_mut() {
+        if self.port.is_some() {
             // Send stop command
             let _ = self.send_command(CMD_STOP, &[]);
         }

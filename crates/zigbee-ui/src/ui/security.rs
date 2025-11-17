@@ -26,39 +26,38 @@ fn draw_summary(f: &mut Frame, app: &App, area: Rect) {
     let summary_text = vec![
         Line::from(vec![
             Span::styled("Security Incidents: ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-            Span::raw(format!("{}", stats.total_incidents)),
+            Span::raw(format!("{}", stats.total_threats)),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Critical: ", Style::default().fg(Color::Red)),
-            Span::raw(format!("{:3}  ", stats.critical_incidents)),
+            Span::raw(format!("{:3}  ", stats.critical_threats)),
             Span::styled("High: ", Style::default().fg(Color::LightRed)),
-            Span::raw(format!("{:3}  ", stats.high_incidents)),
+            Span::raw(format!("{:3}  ", stats.high_threats)),
             Span::styled("Medium: ", Style::default().fg(Color::Yellow)),
-            Span::raw(format!("{:3}  ", stats.medium_incidents)),
+            Span::raw(format!("{:3}  ", stats.medium_threats)),
             Span::styled("Low: ", Style::default().fg(Color::Green)),
-            Span::raw(format!("{:3}", stats.low_incidents)),
+            Span::raw(format!("{:3}", stats.low_threats)),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Networks: ", Style::default().fg(Color::Cyan)),
-            Span::raw(format!("{} ", stats.networks_analyzed)),
+            Span::raw(format!("{} ", 0)),  // TODO: track networks
             Span::styled("Devices: ", Style::default().fg(Color::Cyan)),
             Span::raw(format!("{} (Secured: {}, Unsecured: {})", 
-                stats.devices_analyzed, stats.secured_devices, stats.unsecured_devices)),
+                stats.encrypted_devices + stats.unencrypted_devices, stats.encrypted_devices, stats.unencrypted_devices)),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Avg Encryption Rate: ", Style::default().fg(Color::Green)),
-            Span::raw(format!("{:.1}%  ", stats.avg_encryption_rate * 100.0)),
+            Span::raw(format!("{:.1}%  ", 0.0)),  // TODO: calculate encryption rate
             Span::styled("Avg Trust Score: ", Style::default().fg(Color::Blue)),
-            Span::raw(format!("{:.2}/1.0", stats.avg_trust_score)),
+            Span::raw(format!("{:.2}/1.0", 0.5)),  // TODO: calculate trust score
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Join Attempts: ", Style::default().fg(Color::Magenta)),
-            Span::raw(format!("{} (Success: {}, Failed: {})", 
-                stats.join_attempts, stats.successful_joins, stats.failed_joins)),
+            Span::raw(format!("{} (Success: {}, Failed: {})", 0, 0, 0)),  // TODO: track joins
         ]),
     ];
 
@@ -69,7 +68,7 @@ fn draw_summary(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_incidents(f: &mut Frame, app: &App, area: Rect) {
-    let incidents = app.security.get_incidents();
+    let incidents = &app.security.incidents;
 
     let rows: Vec<Row> = incidents
         .iter()
@@ -77,22 +76,21 @@ fn draw_incidents(f: &mut Frame, app: &App, area: Rect) {
         .skip(app.scroll_offset)
         .take(area.height.saturating_sub(4) as usize)
         .map(|i| {
-            let severity_style = match i.severity {
-                zigbee_analysis::IncidentSeverity::Critical => Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                zigbee_analysis::IncidentSeverity::High => Style::default().fg(Color::LightRed),
-                zigbee_analysis::IncidentSeverity::Medium => Style::default().fg(Color::Yellow),
-                zigbee_analysis::IncidentSeverity::Low => Style::default().fg(Color::Green),
-                zigbee_analysis::IncidentSeverity::Info => Style::default().fg(Color::Cyan),
+            // TODO: SecurityIncident needs a severity field
+            let severity_style = match zigbee_analysis::ThreatSeverity::Medium {
+                zigbee_analysis::ThreatSeverity::Critical => Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                zigbee_analysis::ThreatSeverity::High => Style::default().fg(Color::LightRed),
+                zigbee_analysis::ThreatSeverity::Medium => Style::default().fg(Color::Yellow),
+                zigbee_analysis::ThreatSeverity::Low => Style::default().fg(Color::Green),
             };
 
-            let device_str = i.affected_device
-                .map(|d| format!("{}", d))
-                .unwrap_or_else(|| "N/A".to_string());
+            // TODO: SecurityIncident needs an affected_device field
+            let device_str = "N/A".to_string();
 
             Row::new(vec![
-                format!("{:?}", i.severity),
-                format!("{:?}", i.incident_type),
-                i.description.chars().take(45).collect::<String>(),
+                format!("Medium"),  // TODO: add severity field to SecurityIncident
+                format!("{}", i.incident_type),
+                i.details.chars().take(45).collect::<String>(),
                 device_str,
             ])
             .style(severity_style)

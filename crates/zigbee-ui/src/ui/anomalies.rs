@@ -31,13 +31,13 @@ fn draw_summary(f: &mut Frame, app: &App, area: Rect) {
         Line::from(""),
         Line::from(vec![
             Span::styled("Critical: ", Style::default().fg(Color::Red)),
-            Span::raw(format!("{:4}  ", stats.critical_incidents)),
+            Span::raw(format!("{:4}  ", stats.critical)),
             Span::styled("High: ", Style::default().fg(Color::LightRed)),
-            Span::raw(format!("{:4}  ", stats.high_incidents)),
+            Span::raw(format!("{:4}  ", stats.high)),
             Span::styled("Medium: ", Style::default().fg(Color::Yellow)),
-            Span::raw(format!("{:4}  ", stats.medium_incidents)),
+            Span::raw(format!("{:4}  ", stats.medium)),
             Span::styled("Low: ", Style::default().fg(Color::Green)),
-            Span::raw(format!("{:4}", stats.low_incidents)),
+            Span::raw(format!("{:4}", stats.low)),
         ]),
         Line::from(""),
         Line::from(vec![

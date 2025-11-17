@@ -49,28 +49,30 @@ fn draw_devices(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(summary, chunks[0]);
 
     // Device list
-    let mut devices: Vec<_> = app.topology.devices().values().collect();
-    devices.sort_by(|a, b| b.packet_count.cmp(&a.packet_count));
+    let devices: Vec<_> = app.topology.devices.values().collect();
+    // TODO: Add packet_count to Device for sorting
 
     let rows: Vec<Row> = devices
         .iter()
         .skip(app.scroll_offset)
         .take(area.height.saturating_sub(6) as usize)
         .map(|d| {
-            let type_style = match d.device_type {
-                zigbee_analysis::TopologyDeviceType::Coordinator => Style::default().fg(Color::Green),
-                zigbee_analysis::TopologyDeviceType::Router => Style::default().fg(Color::Yellow),
-                zigbee_analysis::TopologyDeviceType::EndDevice => Style::default().fg(Color::Blue),
-                _ => Style::default().fg(Color::Gray),
+            // Style based on whether device is coordinator/router
+            let type_style = if d.is_coordinator {
+                Style::default().fg(Color::Green)
+            } else if d.is_router {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default().fg(Color::Blue)
             };
 
             Row::new(vec![
-                format!("{}", d.mac_addr),
-                d.nwk_addr.map(|a| format!("0x{:04x}", a)).unwrap_or_else(|| "N/A".to_string()),
+                format!("{}", d.address),
+                d.short_addr.map(|a| format!("0x{:04x}", a)).unwrap_or_else(|| "N/A".to_string()),
                 format!("{:?}", d.device_type),
-                format!("{}", d.packet_count),
-                format!("{:.0}", d.avg_rssi),
-                format!("{:.0}", d.avg_lqi),
+                format!("{}", 0),      // TODO: track packet_count in Device
+                format!("{:.0}", 0.0), // TODO: track avg_rssi in Device
+                format!("{:.0}", 0.0), // TODO: track avg_lqi in Device
             ])
             .style(type_style)
         })
@@ -112,7 +114,7 @@ fn draw_links(f: &mut Frame, app: &App, area: Rect) {
             Span::styled("Total Links: ", Style::default().fg(Color::Cyan)),
             Span::raw(format!("{} ", stats.total_links)),
             Span::styled("Avg Quality: ", Style::default().fg(Color::Green)),
-            Span::raw(format!("{:.1}", stats.avg_link_quality)),
+            Span::raw(format!("{:.1}", 0.0)),  // TODO: calculate avg link quality
         ]),
     ];
 
@@ -121,16 +123,16 @@ fn draw_links(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(summary, chunks[0]);
 
     // Links list
-    let mut links: Vec<_> = app.topology.links().values().collect();
+    let mut links: Vec<_> = app.topology.links.iter().collect();
     links.sort_by(|a, b| b.packet_count.cmp(&a.packet_count));
 
     let rows: Vec<Row> = links
         .iter()
         .take(area.height.saturating_sub(6) as usize)
         .map(|l| {
-            let quality_style = if l.link_quality.avg_lqi > 200.0 {
+            let quality_style = if l.link_quality as f32 > 200.0 {
                 Style::default().fg(Color::Green)
-            } else if l.link_quality.avg_lqi > 150.0 {
+            } else if l.link_quality as f32 > 150.0 {
                 Style::default().fg(Color::Yellow)
             } else {
                 Style::default().fg(Color::Red)
@@ -140,8 +142,8 @@ fn draw_links(f: &mut Frame, app: &App, area: Rect) {
                 format!("{}", l.source),
                 format!("{}", l.destination),
                 format!("{}", l.packet_count),
-                format!("{:.0}", l.link_quality.avg_rssi),
-                format!("{:.0}", l.link_quality.avg_lqi),
+                format!("{:.0}", l.rssi as f32),
+                format!("{:.0}", l.link_quality as f32),
             ])
             .style(quality_style)
         })

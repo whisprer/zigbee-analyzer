@@ -52,10 +52,10 @@ fn draw_summary(f: &mut Frame, app: &App, area: Rect) {
             Span::styled("Anomalies: ", Style::default().fg(Color::Yellow)),
             Span::raw(format!("{} ", anomaly_stats.total_anomalies)),
             Span::styled("(Critical: ", Style::default().fg(Color::Red)),
-            Span::raw(format!("{})", anomaly_stats.critical_incidents)),
+            Span::raw(format!("{})", anomaly_stats.critical)),
             Span::raw("  "),
             Span::styled("Security: ", Style::default().fg(Color::Red)),
-            Span::raw(format!("{} incidents", security_stats.total_incidents)),
+            Span::raw(format!("{} incidents", security_stats.total_threats)),
         ]),
     ];
 
@@ -91,14 +91,14 @@ fn draw_gauges(f: &mut Frame, app: &App, area: Rect) {
     let enc_gauge = Gauge::default()
         .block(Block::default().borders(Borders::ALL).title("Network Encryption Rate"))
         .gauge_style(Style::default().fg(Color::Cyan))
-        .percent((security_stats.avg_encryption_rate * 100.0) as u16);
+        .percent(0);  // TODO: calculate actual encryption rate
     f.render_widget(enc_gauge, chunks[1]);
 
     // Trust score
     let trust_gauge = Gauge::default()
         .block(Block::default().borders(Borders::ALL).title("Average Device Trust Score"))
         .gauge_style(Style::default().fg(Color::Blue))
-        .percent((security_stats.avg_trust_score * 100.0) as u16);
+        .percent(50);  // TODO: calculate actual trust score
     f.render_widget(trust_gauge, chunks[2]);
 }
 

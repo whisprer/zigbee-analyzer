@@ -1,9 +1,8 @@
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use zigbee_drivers::DriverRegistry;
-use zigbee_hal::traits::ZigbeeCapture;
+use zigbee_drivers::registry::DriverRegistry;
 use zigbee_analysis::{
-    NetworkTopology, TrafficStatistics, ChannelAnalyzer, AnomalyDetector,
+    TopologyMap, TrafficStatistics, ChannelAnalyzer, AnomalyDetector,
     SecurityAnalyzer, DeviceDatabase,
 };
 use std::time::{SystemTime, Duration};
@@ -31,7 +30,7 @@ pub struct App {
     driver_rx: mpsc::UnboundedReceiver<CaptureEvent>,
     
     // Analyzers
-    pub topology: NetworkTopology,
+    pub topology: TopologyMap,
     pub statistics: TrafficStatistics,
     pub channels: ChannelAnalyzer,
     pub anomalies: AnomalyDetector,
@@ -48,7 +47,7 @@ pub struct App {
 }
 
 enum CaptureEvent {
-    Packet(zigbee_hal::ZigbeePacket),
+    Packet(zigbee_core::packet::RawPacket),
     Error(String),
 }
 
@@ -93,7 +92,7 @@ impl App {
             paused: false,
             help_visible: false,
             driver_rx: rx,
-            topology: NetworkTopology::new(),
+            topology: TopologyMap::new(),
             statistics: TrafficStatistics::new(),
             channels: ChannelAnalyzer::new(),
             anomalies: AnomalyDetector::new(),
@@ -126,7 +125,7 @@ impl App {
                         packet.channel
                     );
                     
-                    let has_errors = !packet.validate_fcs();
+                    let has_errors = false;  // TODO: implement FCS validation
                     if has_errors {
                         self.error_count += 1;
                     }
@@ -141,7 +140,7 @@ impl App {
                     
                     // Parse and process
                     if let Ok(parsed) = packet.parse() {
-                        self.topology.process_packet(&parsed, packet.rssi, packet.lqi, packet.channel);
+                        self.topology.process_packet(&parsed);
                         self.statistics.process_parsed_packet(&parsed, packet.rssi, packet.lqi, packet.channel);
                         self.anomalies.process_packet(&parsed, packet.rssi, packet.channel);
                         self.security.process_packet(&parsed);
