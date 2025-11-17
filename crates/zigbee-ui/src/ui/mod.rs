@@ -7,13 +7,6 @@ mod security;
 mod devices;
 mod help;
 
-pub use overview::draw as draw_overview;
-pub use topology::draw as draw_topology;
-pub use statistics::draw as draw_statistics;
-pub use channels::draw as draw_channels;
-pub use anomalies::draw as draw_anomalies;
-pub use security::draw as draw_security;
-pub use devices::draw as draw_devices;
 
 use crate::app::{App, Tab};
 use ratatui::{

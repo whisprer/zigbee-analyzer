@@ -12,6 +12,7 @@ use std::io::{Read, Write};
 
 /// TI CC2652 USB Zigbee Sniffer driver
 /// Supports both CC2652R and CC2652P variants
+#[allow(dead_code)]
 pub struct CC2652 {
     port: Option<Arc<Mutex<Box<dyn SerialPort>>>>,
     port_name: String,

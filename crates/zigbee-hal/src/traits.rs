@@ -1,3 +1,5 @@
+#![allow(async_fn_in_trait)]
+
 use crate::{capabilities::DeviceCapabilities, error::HalError};
 use zigbee_core::packet::RawPacket;
 use async_trait::async_trait;

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use zigbee_core::packet::RawPacket;
 use zigbee_hal::{
     traits::ZigbeeCapture,
@@ -11,6 +12,7 @@ use std::time::{Duration, SystemTime};
 use std::io::{Read, Write};
 
 /// ConBee/ConBee II/RaspBee/RaspBee II USB Zigbee Sniffer driver
+#[allow(dead_code)]
 pub struct ConBee {
     port: Option<Arc<Mutex<Box<dyn SerialPort>>>>,
     port_name: String,

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use zigbee_core::{ParsedPacket, MacAddress, FrameType};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque, HashSet};
@@ -207,7 +208,7 @@ impl AnomalyDetector {
     }
     
     /// Process a parsed packet for anomaly detection
-    pub fn process_packet(&mut self, parsed: &ParsedPacket, rssi: i8, channel: u8) {
+    pub fn process_packet(&mut self, parsed: &ParsedPacket, _rssi: i8, channel: u8) {
         self.total_packets_processed += 1;
         
         let mut detected_anomalies = Vec::new();

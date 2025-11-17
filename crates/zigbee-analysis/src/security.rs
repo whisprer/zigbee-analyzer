@@ -108,7 +108,7 @@ impl SecurityAnalyzer {
         }
     }
     
-    fn update_device_security(&mut self, addr: &MacAddress, parsed: &ParsedPacket, now: SystemTime) {
+    fn update_device_security(&mut self, addr: &MacAddress, parsed: &ParsedPacket, _now: SystemTime) {
         // FIX: Access security through frame_control, not directly
         let is_encrypted = parsed.network
             .as_ref()
@@ -190,6 +190,8 @@ impl SecurityAnalyzer {
             }
         }
     }
+    
+    #[allow(dead_code)]
     
     fn add_incident(&mut self, incident_type: String, details: String) {
         self.incidents.push_back(SecurityIncident {

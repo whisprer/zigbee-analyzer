@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use zigbee_drivers::registry::DriverRegistry;
@@ -54,7 +55,7 @@ enum CaptureEvent {
 impl App {
     pub async fn new() -> Result<Self> {
         // Initialize driver
-        let mut registry = DriverRegistry::new();
+        let registry = DriverRegistry::new();
         let devices = registry.detect_devices();
         
         if devices.is_empty() {

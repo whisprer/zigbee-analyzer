@@ -87,7 +87,7 @@ fn draw_gauges(f: &mut Frame, app: &App, area: Rect) {
     }
 
     // Encryption rate
-    let security_stats = app.security.get_statistics();
+    let _security_stats = app.security.get_statistics();
     let enc_gauge = Gauge::default()
         .block(Block::default().borders(Borders::ALL).title("Network Encryption Rate"))
         .gauge_style(Style::default().fg(Color::Cyan))

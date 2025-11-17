@@ -11,6 +11,7 @@ use std::time::{Duration, SystemTime};
 use std::io::{Read, Write};
 
 /// TI CC2531 USB Zigbee Sniffer driver
+#[allow(dead_code)]
 pub struct CC2531 {
     port: Option<Arc<Mutex<Box<dyn SerialPort>>>>,
     port_name: String,
