@@ -1,16 +1,36 @@
-\# Code of Conduct
+# Code of Conduct
 
+## Our Pledge
 
-We expect all contributors and community members to:
+We are committed to providing a welcoming and inclusive environment for all contributors.
 
-\- Be respectful and professional.
+## Standards
 
-\- Avoid harassment or discrimination of any kind.
+**Expected Behavior:**
+- Be respectful and professional
+- Use inclusive language
+- Accept constructive criticism
+- Focus on what's best for the community
+- Show empathy toward others
 
-\- Discuss technical issues, not personalities.
+**Unacceptable Behavior:**
+- Harassment or discrimination
+- Trolling or insulting comments
+- Personal or political attacks
+- Publishing private information
+- Unprofessional conduct
 
-\- Use inclusive language and constructive feedback.
+## Enforcement
 
-Violations may result in moderation or removal of contributions.
+Violations may result in:
+- Warning
+- Temporary ban
+- Permanent ban
 
-Adapted from the Contributor Covenant v2.1.
+## Reporting
+
+Report violations to security@whispr.dev
+
+## Attribution
+
+Adapted from Contributor Covenant v2.1

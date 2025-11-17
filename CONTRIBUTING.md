@@ -1,98 +1,53 @@
-\# Contributing to Secure Delete
+# Contributing to zigbee-analyzer
 
+Thanks for your interest! 🐺
 
+## Code Style
 
-Thanks for your interest in improving `woflOS`!
+- Follow Rust 2021 conventions
+- Run `cargo fmt` before commits
+- Run `cargo clippy` and fix warnings
+- Keep dependencies minimal
 
+## Workflow
 
+1. Fork the repository
+2. Create feature branch:
+   ```bash
+   git checkout -b feature/your-feature
+   ```
+3. Commit with clear messages:
+   ```
+   feat: add ConBee support
+   fix: handle malformed packets
+   docs: update CLI readme
+   ```
+4. Push and open Pull Request
 
-\## Code Style
+## Testing
 
-\- Follow \*\*Rust 2021\*\* edition conventions.
-
-\- Run `cargo fmt` before commits.
-
-\- Ensure all warnings are resolved (`cargo clippy -- -D warnings`).
-
-\- Keep logic minimal — avoid unnecessary dependencies.
-
-
-
-\## Development Workflow
-
-1\. Fork the repository.
-
-2\. Create a feature branch:
-
-&nbsp;  ```bash
-
-&nbsp;  git checkout -b feature/your-feature
-
-Commit changes with clear, conventional messages:
-
-
-
-vbnet
-
-Copy code
-
-feat: add macOS-specific permission fix
-
-fix: handle readonly directories on Windows
-
-Push and open a Pull Request against main.
-
-
-
-Testing
-
-Run the build and ensure no regressions:
-
-
-
-bash
-
-Copy code
-
-cargo build --release
-
+```bash
 cargo test
+cargo build --release
+```
 
-For manual verification:
+## Documentation
 
+Update README.md for new features.
 
+## Areas for Contribution
 
-Create temporary files.
+- Additional device drivers
+- Protocol enhancements
+- Analysis algorithms
+- Bug fixes
+- Documentation
+- Examples
 
+## Communication
 
+- Issues: Bug reports and features
+- Discussions: Questions and ideas
+- Security: security@whispr.dev
 
-Compare before/after with a hex viewer or recovery utility.
-
-
-
-Documentation
-
-If you add a feature, please update README.md accordingly.
-
-
-
-Communication
-
-Open an Issue for:
-
-
-
-Feature requests
-
-
-
-Bug reports
-
-
-
-Questions or clarifications
-
-
-
-Thanks for helping keep Secure-Delete clean, efficient, and reliable!
-
+Thanks for contributing! 🎉

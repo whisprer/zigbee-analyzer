@@ -1,27 +1,77 @@
-\# Security Policy
+# Security Policy
 
-\## Supported Versions
-| Version  | Supported  |
-|----------|------------|
-| 0.2.x    | ✅ Active  |
+## Supported Versions
 
-\## Reporting a Vulnerability
-If you discover a potential vulnerability:
-1\. \*\*Do not\*\* open a public GitHub issue immediately.
-2\. Contact the maintainer privately via:
-   - Email: security@whispr.dev
-   - Or via GitHub’s “Report a vulnerability” feature.
+| Version | Supported |
+|---------|-----------|
+| 0.1.x   | ✅ Active |
 
-We aim to respond within \*\*72 hours\*\*.
+## Reporting Vulnerabilities
 
-\## Security Scope
-This project focuses on \*software-level\* secure operation of core file sysytems and operations of
-RISC-V arhcitecture computers.
-It \*\*does not\*\* claim full physical sanitization of computer hardware (especially peripherals or
-cloud connected devices).
+If you discover a security vulnerability:
 
-\## Known Limitations
+1. **Do not** open a public GitHub issue
+2. Email: security@whispr.dev
+3. Or use GitHub's "Report a vulnerability" feature
 
-\## Verification
-Users are encouraged to inspect, audit, and rebuild the source before deployment.
+We aim to respond within **72 hours**.
 
+## Security Scope
+
+This project provides tools for:
+- Network monitoring and analysis
+- Security research and auditing
+- Protocol compliance testing
+
+### What We Do
+- Packet capture and parsing
+- Security analysis
+- Anomaly detection
+- Protocol validation
+
+### What We Don't Do
+- Break encryption (we detect it, not crack it)
+- Attack networks (monitoring only)
+- Bypass authentication
+- Exploit vulnerabilities
+
+## Responsible Use
+
+This tool is for:
+- ✅ Your own networks
+- ✅ Authorized security research
+- ✅ Educational purposes
+- ✅ Network administration
+
+**NOT for:**
+- ❌ Unauthorized network access
+- ❌ Intercepting others' communications
+- ❌ Illegal activities
+
+## Known Limitations
+
+- Relies on hardware dongle security
+- No encryption key cracking
+- Capture limited to Zigbee channels
+- USB security depends on host OS
+
+## Best Practices
+
+1. Only analyze authorized networks
+2. Protect captured data
+3. Follow local laws and regulations
+4. Keep software updated
+5. Use secure development practices
+
+## Verification
+
+Users are encouraged to:
+- Inspect source code
+- Build from source
+- Audit dependencies
+- Review commits
+
+## Contact
+
+- Security issues: security@whispr.dev
+- General questions: GitHub Issues
